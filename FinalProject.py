@@ -9,17 +9,22 @@ from email.mime.text import MIMEText
 def insert_and_display_data():
     # Get values from GUI fields
     line = line_var.get()
+    month = month_var.get()
+    day = day_var.get()
     product_name = product_name_entry.get()
     net_weight = net_weight_entry.get()
     packaging_type = packaging_var.get()
     comment = comment_entry.get("1.0", tk.END)  # Get text from comment Text widget
 
+    # Combine month and day into date format (e.g., "July 14")
+    current_date = f"{month} {day}"
+
     # Insert into SQLite database
     conn = sqlite3.connect('inventory.db')  # Connect to or create SQLite database file
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS inventory
-                 (line TEXT, product_name TEXT, net_weight REAL, packaging_type TEXT, comment TEXT)''')
-    c.execute("INSERT INTO inventory VALUES (?, ?, ?, ?, ?)", (line, product_name, net_weight, packaging_type, comment))
+                 (line TEXT, date TEXT, product_name TEXT, net_weight REAL, packaging_type TEXT, comment TEXT)''')
+    c.execute("INSERT INTO inventory VALUES (?, ?, ?, ?, ?, ?)", (line, current_date, product_name, net_weight, packaging_type, comment))
     conn.commit()
 
     # Close connection
@@ -40,8 +45,9 @@ def display_data():
     root_display.title("Inventory Data Viewer")
 
     # Create a treeview (listbox) to display data
-    data_listbox = ttk.Treeview(root_display, columns=("Line", "Product Name", "Net Weight (kg)", "Packaging Type", "Comment"), show="headings")
+    data_listbox = ttk.Treeview(root_display, columns=("Line", "Date", "Product Name", "Net Weight (kg)", "Packaging Type", "Comment"), show="headings")
     data_listbox.heading("Line", text="Line")
+    data_listbox.heading("Date", text="Date")
     data_listbox.heading("Product Name", text="Product Name")
     data_listbox.heading("Net Weight (kg)", text="Net Weight (kg)")
     data_listbox.heading("Packaging Type", text="Packaging Type")
@@ -100,7 +106,7 @@ def send_email():
     conn.close()
 
     # Prepare email content
-    email_content = "\n".join([f"Line: {row[0]}, Product Name: {row[1]}, Net Weight: {row[2]} kg, Packaging Type: {row[3]}, Comment: {row[4]}" for row in rows])
+    email_content = "\n".join([f"Line: {row[0]}, Date: {row[1]}, Product Name: {row[2]}, Net Weight: {row[3]} kg, Packaging Type: {row[4]}, Comment: {row[5]}" for row in rows])
 
     # Set up email parameters
     sender_email = 'your_email@example.com'  # Replace with your email address
@@ -139,32 +145,45 @@ line_var = tk.StringVar(root_input)
 line_dropdown = ttk.Combobox(root_input, textvariable=line_var, values=["1", "2", "3", "5", "8", "9", "10", "11", "12", "13", "16", "N/a"])
 line_dropdown.grid(row=0, column=1, padx=10, pady=10)
 
+# Date input (Month and Day)
+month_label = ttk.Label(root_input, text="Month:")
+month_label.grid(row=1, column=0, padx=10, pady=10)
+month_var = tk.StringVar(root_input)
+month_dropdown = ttk.Combobox(root_input, textvariable=month_var, values=["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"])
+month_dropdown.grid(row=1, column=1, padx=10, pady=10)
+
+day_label = ttk.Label(root_input, text="Day:")
+day_label.grid(row=1, column=2, padx=10, pady=10)
+day_var = tk.StringVar(root_input)
+day_dropdown = ttk.Combobox(root_input, textvariable=day_var, values=[str(i) for i in range(1, 32)])
+day_dropdown.grid(row=1, column=3, padx=10, pady=10)
+
 product_name_label = ttk.Label(root_input, text="Product Name:")
-product_name_label.grid(row=1, column=0, padx=10, pady=10)
+product_name_label.grid(row=2, column=0, padx=10, pady=10)
 product_name_entry = ttk.Entry(root_input)
-product_name_entry.grid(row=1, column=1, padx=10, pady=10)
+product_name_entry.grid(row=2, column=1, padx=10, pady=10)
 
 net_weight_label = ttk.Label(root_input, text="Net Weight (kg):")
-net_weight_label.grid(row=2, column=0, padx=10, pady=10)
+net_weight_label.grid(row=3, column=0, padx=10, pady=10)
 net_weight_entry = ttk.Entry(root_input)
-net_weight_entry.grid(row=2, column=1, padx=10, pady=10)
+net_weight_entry.grid(row=3, column=1, padx=10, pady=10)
 
 packaging_label = ttk.Label(root_input, text="Packaging Type:")
-packaging_label.grid(row=3, column=0, padx=10, pady=10)
+packaging_label.grid(row=4, column=0, padx=10, pady=10)
 packaging_var = tk.StringVar(root_input)
 packaging_dropdown = ttk.Combobox(root_input, textvariable=packaging_var, values=["Roll", "Skid", "Box"])
-packaging_dropdown.grid(row=3, column=1, padx=10, pady=10)
+packaging_dropdown.grid(row=4, column=1, padx=10, pady=10)
 
 comment_label = ttk.Label(root_input, text="Comment:")
-comment_label.grid(row=4, column=0, padx=10, pady=10)
+comment_label.grid(row=5, column=0, padx=10, pady=10)
 comment_entry = tk.Text(root_input, height=4, width=30)
-comment_entry.grid(row=4, column=1, padx=10, pady=10)
+comment_entry.grid(row=5, column=1, padx=10, pady=10)
 
 # Email addresses listbox and scrollbar
 email_label = ttk.Label(root_input, text="Select Email Addresses:")
-email_label.grid(row=5, column=0, padx=10, pady=10)
+email_label.grid(row=6, column=0, padx=10, pady=10)
 email_listbox = tk.Listbox(root_input, selectmode=tk.MULTIPLE, height=3)
-email_listbox.grid(row=5, column=1, padx=10, pady=10)
+email_listbox.grid(row=6, column=1, padx=10, pady=10)
 # Add sample email addresses
 sample_emails = ["recipient1@example.com", "recipient2@example.com", "recipient3@example.com"]
 for email in sample_emails:
@@ -172,15 +191,15 @@ for email in sample_emails:
 
 # Button to submit data and display in second GUI
 submit_button = ttk.Button(root_input, text="Submit", command=insert_and_display_data)
-submit_button.grid(row=6, column=0, columnspan=2, pady=10)
+submit_button.grid(row=7, column=0, columnspan=4, pady=10)
 
 # Button to clear database (prompt for password)
 clear_button = ttk.Button(root_input, text="Clear Database", command=clear_database)
-clear_button.grid(row=7, column=0, columnspan=2, pady=10)
+clear_button.grid(row=8, column=0, columnspan=4, pady=10)
 
 # Button to send email with data
 send_email_button = ttk.Button(root_input, text="Send Email", command=send_email)
-send_email_button.grid(row=8, column=0, columnspan=2, pady=10)
+send_email_button.grid(row=9, column=0, columnspan=4, pady=10)
 
 # Start the input GUI main loop
 root_input.mainloop()
