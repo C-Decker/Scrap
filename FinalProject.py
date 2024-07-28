@@ -1,9 +1,9 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
 import sqlite3
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
+import os
+import win32print
+import win32api
 
 # Function to handle button click, insert data into database, and display data in the second GUI
 def insert_and_display_data():
@@ -14,7 +14,7 @@ def insert_and_display_data():
     product_name = product_name_entry.get()
     net_weight = net_weight_entry.get()
     packaging_type = packaging_var.get()
-    comment = comment_entry.get("1.0", tk.END)  # Get text from comment Text widget
+    comment = comment_entry.get("1.0", tk.END).strip()
 
     # Combine month and day into date format (e.g., "July 14")
     current_date = f"{month} {day}"
@@ -26,8 +26,6 @@ def insert_and_display_data():
                  (line TEXT, date TEXT, product_name TEXT, net_weight REAL, packaging_type TEXT, comment TEXT)''')
     c.execute("INSERT INTO inventory VALUES (?, ?, ?, ?, ?, ?)", (line, current_date, product_name, net_weight, packaging_type, comment))
     conn.commit()
-
-    # Close connection
     conn.close()
 
     # Clear input fields after insertion
@@ -65,12 +63,9 @@ def display_data():
     for row in rows:
         data_listbox.insert("", "end", values=row)
 
-    # Function to start the display GUI main loop
-    def start_display_gui():
-        root_display.mainloop()
-
-    # Call the function to start displaying the GUI
-    start_display_gui()
+    # Add print button
+    print_button = ttk.Button(root_display, text="Print Data", command=lambda: print_data(rows))
+    print_button.pack(pady=10)
 
 # Function to clear database (prompt for password)
 def clear_database():
@@ -90,49 +85,33 @@ def clear_database():
     else:
         messagebox.showerror("Error", "Incorrect password!")
 
-# Function to send email with data
-def send_email():
-    # Get selected email addresses from dropdown
-    selected_emails = email_listbox.curselection()
-    if not selected_emails:
-        messagebox.showerror("Error", "Please select at least one email address.")
-        return
+# Function to print the data to the specified printer
+def print_data(data):
+    # Create a temporary text file with the data
+    temp_file = "temp_inventory_data.txt"
+    with open(temp_file, "w") as file:
+        file.write("Line\tDate\tProduct Name\tNet Weight (kg)\tPackaging Type\tComment\n")
+        for row in data:
+            file.write("\t".join(map(str, row)) + "\n")
 
-    # Get data from SQLite database
-    conn = sqlite3.connect('inventory.db')
-    c = conn.cursor()
-    c.execute("SELECT * FROM inventory")
-    rows = c.fetchall()
-    conn.close()
-
-    # Prepare email content
-    email_content = "\n".join([f"Line: {row[0]}, Date: {row[1]}, Product Name: {row[2]}, Net Weight: {row[3]} kg, Packaging Type: {row[4]}, Comment: {row[5]}" for row in rows])
-
-    # Set up email parameters
-    sender_email = 'your_email@example.com'  # Replace with your email address
-    sender_password = 'your_password'  # Replace with your email password
-    smtp_server = 'smtp.example.com'  # Replace with your SMTP server address
-    smtp_port = 587  # Replace with your SMTP port number
-
-    # Create a multipart message and set headers
-    msg = MIMEMultipart()
-    msg['From'] = sender_email
-    msg['To'] = ", ".join(email_listbox.get(idx) for idx in selected_emails)
-    msg['Subject'] = 'Inventory Data'
-
-    # Add email body
-    msg.attach(MIMEText(email_content, 'plain'))
-
+    # Print the file to the specified printer
+    printer_name = "Took_)outNetwork_printer"  # Network printer path
     try:
-        # Log in to SMTP server and send email
-        with smtplib.SMTP(smtp_server, smtp_port) as server:
-            server.starttls()  # Secure the connection
-            server.login(sender_email, sender_password)
-            server.send_message(msg)
-        messagebox.showinfo("Success", "Email sent successfully!")
-
+        win32print.SetDefaultPrinter(printer_name)
+        win32api.ShellExecute(
+            0,
+            "print",
+            temp_file,
+            None,
+            ".",
+            0
+        )
+        messagebox.showinfo("Success", "Data sent to printer successfully!")
     except Exception as e:
-        messagebox.showerror("Error", f"An error occurred while sending email: {e}")
+        messagebox.showerror("Error", f"An error occurred while printing: {e}")
+
+    # Clean up the temporary file
+    os.remove(temp_file)
 
 # Create main window for input
 root_input = tk.Tk()
@@ -179,27 +158,13 @@ comment_label.grid(row=5, column=0, padx=10, pady=10)
 comment_entry = tk.Text(root_input, height=4, width=30)
 comment_entry.grid(row=5, column=1, padx=10, pady=10)
 
-# Email addresses listbox and scrollbar
-email_label = ttk.Label(root_input, text="Select Email Addresses:")
-email_label.grid(row=6, column=0, padx=10, pady=10)
-email_listbox = tk.Listbox(root_input, selectmode=tk.MULTIPLE, height=3)
-email_listbox.grid(row=6, column=1, padx=10, pady=10)
-# Add sample email addresses
-sample_emails = ["recipient1@example.com", "recipient2@example.com", "recipient3@example.com"]
-for email in sample_emails:
-    email_listbox.insert(tk.END, email)
-
 # Button to submit data and display in second GUI
 submit_button = ttk.Button(root_input, text="Submit", command=insert_and_display_data)
-submit_button.grid(row=7, column=0, columnspan=4, pady=10)
+submit_button.grid(row=6, column=0, columnspan=4, pady=10)
 
 # Button to clear database (prompt for password)
 clear_button = ttk.Button(root_input, text="Clear Database", command=clear_database)
-clear_button.grid(row=8, column=0, columnspan=4, pady=10)
-
-# Button to send email with data
-send_email_button = ttk.Button(root_input, text="Send Email", command=send_email)
-send_email_button.grid(row=9, column=0, columnspan=4, pady=10)
+clear_button.grid(row=7, column=0, columnspan=4, pady=10)
 
 # Start the input GUI main loop
 root_input.mainloop()
